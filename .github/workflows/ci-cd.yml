@@ -37,7 +37,7 @@ jobs:
           to: nithyashreepr10@gmail.com
           from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
           body: |
-            🚀 Hello P Sandeep!!
+            🚀 Hello Nithyashree!!
 
             Your application was just deployed successfully.
 
