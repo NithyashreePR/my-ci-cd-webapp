@@ -9,24 +9,75 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - run: npm ci
-      - run: npm test
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
 
       - name: Build app
-        run: npm run build || echo "No build script defined"
-        
-      - name: Deploy to Render
-        run: curl "$RENDER_DEPLOY_HOOK"
+        run: |
+          if npm run | grep -q "build"; then
+            npm run build
+          else
+            echo "⚠️ No build script defined in package.json"
+          fi
+
+      - name: Trigger Render Deployment
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          echo "🚀 Triggering Render deployment..."
+          curl -s -X POST "$RENDER_DEPLOY_HOOK"
+
+      - name: Monitor Render Deployment
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          echo "⏳ Waiting for deployment status..."
+
+          for i in {1..30}; do
+            RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys")
+
+            DEPLOY_ID=$(echo "$RESPONSE" | jq -r '.[0].id')
+            STATUS=$(echo "$RESPONSE" | jq -r '.[0].status')
+
+            echo "Attempt $i - Deploy ID: $DEPLOY_ID - Status: $STATUS"
+
+            if [[ "$STATUS" == "live" ]]; then
+              echo "✅ Deployment successful!"
+              SUCCESS=true
+              break
+            elif [[ "$STATUS" == "failed" ]]; then
+              echo "❌ Deployment failed!"
+              SUCCESS=false
+              break
+            fi
+
+            sleep 10
+          done
+
+          echo "📜 Fetching deployment logs for $DEPLOY_ID..."
+          LOGS=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/deploys/$DEPLOY_ID/logs" | jq -r '.logs')
+
+          echo "📝 Render Logs:"
+          echo "$LOGS"
+
+          echo "$SUCCESS" > deploy_status.txt
 
       - name: Send Email Notification
+        if: success() && steps.build-test-deploy.outputs.success != 'false'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -34,11 +85,11 @@ jobs:
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "✅ Deployment Complete: Node.js App"
-          to: nithyashreepr10@gmail.com
+          to: maheshanekallu@gmail.com
           from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
           body: |
-            🚀 Hello Nithyashree!!
+            🚀 Hello Mahesh!
 
-            Your application was just deployed successfully.
+            Your Node.js application has been successfully deployed to Render.
 
-            🔗 Live URL: https://my-ci-cd-webapp-wsrs.onrender.com
+            🔗 Live URL: https://node-cicd-q6g2.onrender.com/
