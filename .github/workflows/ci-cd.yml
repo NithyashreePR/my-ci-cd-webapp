@@ -34,7 +34,7 @@ jobs:
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "✅ Deployment Complete: Node.js App"
-          to: sandeeppatali683@gmail.com
+          to: nithyashreepr10@gmail.com
           from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
           body: |
             🚀 Hello P Sandeep!!
