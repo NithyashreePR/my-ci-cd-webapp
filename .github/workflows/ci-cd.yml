@@ -1,3 +1,80 @@
+# name: CI/CD Pipeline with Email
+
+# on:
+#   push:
+#     branches: [main]
+
+# jobs:
+#   build-test-deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - uses: actions/checkout@v3
+#       - name: Use Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: '18'
+
+#       - run: npm ci
+#       - run: npm test
+
+#       - name: Build app
+#         run: npm run build || echo "No build script defined"
+        
+#       - name: Trigger Render Deployment
+#         env:
+#           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+#         run: |
+#           echo "🚀 Triggering Render deployment..."
+#           curl -s -X POST "$RENDER_DEPLOY_HOOK"
+
+#       - name: Trigger and Monitor Render Deployment
+#         env:
+#           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+#           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+#           SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+#         run: |
+#           echo "🚀 Triggering Render deployment..."
+#           curl -s -X POST "$RENDER_DEPLOY_HOOK"
+
+#           echo "⏳ Waiting for deployment to start..."
+
+#           for i in {1..30}; do
+#             RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+#               "https://api.render.com/v1/services/$SERVICE_ID/deploys")
+
+#             DEPLOY_ID=$(echo "$RESPONSE" | jq -r '.[0].deploy.id')
+#             STATUS=$(echo "$RESPONSE" | jq -r '.[0].deploy.status')
+
+#             echo "Attempt $i - Deploy ID: $DEPLOY_ID - Status: $STATUS"
+
+#             if [[ "$STATUS" == "live" ]]; then
+#               echo "✅ Deployment successful!"
+#               break
+#             elif [[ "$STATUS" == "failed" ]]; then
+#               echo "❌ Deployment failed!"
+#               break
+#             fi
+
+#             sleep 10
+#           done
+
+#       - name: Send Email Notification
+#         uses: dawidd6/action-send-mail@v3
+#         with:
+#           server_address: smtp.gmail.com
+#           server_port: 465
+#           username: ${{ secrets.EMAIL_USERNAME }}
+#           password: ${{ secrets.EMAIL_PASSWORD }}
+#           subject: "✅ Deployment Complete: Node.js App"
+#           to: nithyashreepr10@gmail.com
+#           from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+#           body: |
+#             🚀 Hello Nithyashree!!
+
+#             Your application was just deployed successfully.
+
+#             🔗 Live URL: https://my-ci-cd-webapp-wsrs.onrender.com
 name: CI/CD Pipeline with Email
 
 on:
@@ -10,6 +87,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
@@ -20,7 +98,7 @@ jobs:
 
       - name: Build app
         run: npm run build || echo "No build script defined"
-        
+
       - name: Trigger Render Deployment
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
@@ -28,15 +106,12 @@ jobs:
           echo "🚀 Triggering Render deployment..."
           curl -s -X POST "$RENDER_DEPLOY_HOOK"
 
-      - name: Trigger and Monitor Render Deployment
+      - name: Monitor Render Deployment and Set Status
+        id: monitor
         env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          echo "🚀 Triggering Render deployment..."
-          curl -s -X POST "$RENDER_DEPLOY_HOOK"
-
           echo "⏳ Waiting for deployment to start..."
 
           for i in {1..30}; do
@@ -50,16 +125,22 @@ jobs:
 
             if [[ "$STATUS" == "live" ]]; then
               echo "✅ Deployment successful!"
-              break
+              echo "deploy_status=success" >> $GITHUB_OUTPUT
+              exit 0
             elif [[ "$STATUS" == "failed" ]]; then
               echo "❌ Deployment failed!"
-              break
+              echo "deploy_status=failed" >> $GITHUB_OUTPUT
+              exit 0
             fi
 
             sleep 10
           done
 
-      - name: Send Email Notification
+          echo "⚠️ Deployment timed out"
+          echo "deploy_status=timeout" >> $GITHUB_OUTPUT
+
+      - name: Send Success Email
+        if: steps.monitor.outputs.deploy_status == 'success'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -72,6 +153,24 @@ jobs:
           body: |
             🚀 Hello Nithyashree!!
 
-            Your application was just deployed successfully.
+            Your application was successfully deployed.
 
             🔗 Live URL: https://my-ci-cd-webapp-wsrs.onrender.com
+
+      - name: Send Failure Email
+        if: steps.monitor.outputs.deploy_status != 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "❌ Deployment Failed: Node.js App"
+          to: nithyashreepr10@gmail.com
+          from: "GitHub Actions <${{ secrets.EMAIL_USERNAME }}>"
+          body: |
+            ❌ Hello Nithyashree,
+
+            Your application deployment has failed or timed out.
+
+            Please check the GitHub Actions logs for more details.
