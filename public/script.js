@@ -18,19 +18,22 @@
   
 //     taskInput.value = '';
 //   }
-const tasks = [];
 
+const tasks = [];
 function addTask() {
   const taskInput = document.getElementById('taskInput');
   const prioritySelect = document.getElementById('prioritySelect');
   const taskText = taskInput.value.trim();
   const priority = prioritySelect.value;
+  
+
 
   if (taskText === '') return;
 
   tasks.push({ text: taskText, priority });
 
-  renderTasks(); // Sort and render tasks
+
+  renderTasks(); 
 
   taskInput.value = '';
   prioritySelect.value = 'low'; // Reset
@@ -45,7 +48,6 @@ function renderTasks() {
 
   tasks.forEach((task, index) => {
     const li = document.createElement('li');
-
     const taskTextSpan = document.createElement('span');
     taskTextSpan.textContent = task.text;
 

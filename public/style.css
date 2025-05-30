@@ -85,8 +85,8 @@ li {
 }
 
 .low { background-color: #4caf50; }
-.medium { background-color: #ff9800; }
-.high { background-color: #f44336; }
+.medium { background-color: #e4aa54; }
+.high { background-color: #b44038; }
 
 .remove-btn {
   background-color: #e53935;
@@ -103,3 +103,4 @@ li {
 .remove-btn:hover {
   background-color: #b71c1c;
 }
+
